@@ -33,6 +33,7 @@ contract LolasGirls is AccessControlEnumerable, ERC721Enumerable, ERC721URIStora
     Counters.Counter public tokenIdTracker;
     uint public max_supply;
     uint public price;
+    mapping (uint => bool) public escapedRabbits;
 
     mapping(uint => bool) private hasLolasGirl;
     string private _baseTokenURI;
@@ -95,10 +96,20 @@ contract LolasGirls is AccessControlEnumerable, ERC721Enumerable, ERC721URIStora
         _openMint = openMint;
     }
 
+    function escapeRabbits(uint[] calldata tokenIds) external onlyAdmin {
+        for (uint i=0; i < tokenIds.length; i++) {
+            escapedRabbits[tokenIds[i]] = true;
+        }
+    }
+
     function mint(uint rabbitTokenId) public payable {
         require(_openMint == true, "LolasGirls: minting is currently not open");
         require(tokenIdTracker.current() <= max_supply, "LolasGirls: all tokens have been minted");
         require(msg.value == price, "LolasGirls: amount sent is incorrect");
+        require(
+            escapedRabbits[rabbitTokenId] == true,
+            "LolasGirls: Degenerabbit has not escaped yet."
+        );
         require(
             hasLolasGirl[rabbitTokenId] == false,
             "LolasGirls: this Degenerabbit has already minted a LolasGirl"

@@ -64,6 +64,7 @@ def test_initial_state(contracts):
 def test_valid_mint(contracts):
     lolas_girls, rabbits, _ = contracts
     lolas_girls.setMint(True, {"from": accounts[0]})
+    lolas_girls.escapeRabbits([1,2,3,4,5,6,7,8,9,10], {"from": accounts[0]})
     initial_wallet_balance = accounts[8].balance()
     for i in range(3):
         account = accounts[i]
@@ -85,6 +86,7 @@ def test_only_admin(contracts):
     for i in range(10):
         if i in admins:
             lolas_girls.setMint(True, {"from": accounts[i]})
+            lolas_girls.escapeRabbits([1,2,3,4,5,6,7,8,9,10], {"from": accounts[i]})
             rabbit_id = rabbits.tokenOfOwnerByIndex(accounts[0], rabbit_index)
             rabbit_index += 1
             lolas_girls.mint(rabbit_id, {"from": accounts[0], "value": "1 ether"})
@@ -101,23 +103,9 @@ def test_only_admin(contracts):
             with brownie.reverts():
                 lolas_girls.setPrice("0.5 ether", {"from": accounts[i]})
 
-def test_change_mint_price(contracts):
-    lolas_girls, rabbits, _ = contracts
-    wallet_balance = accounts[8].balance()
-    minter_balance = accounts[1].balance()
-    lolas_girls.setMint(True, {"from": accounts[0]})
-    rabbit_id = rabbits.tokenOfOwnerByIndex(accounts[1], 0)
-    lolas_girls.mint(rabbit_id, {"from": accounts[1], "value": "1 ether"})
-    lolas_girls.setPrice("0.5 ether", {"from": accounts[8]})
-    rabbit_id = rabbits.tokenOfOwnerByIndex(accounts[1], 1)
-    with brownie.reverts():
-        lolas_girls.mint(rabbit_id, {"from": accounts[1], "value": "1 ether"})
-    lolas_girls.mint(rabbit_id, {"from": accounts[1], "value": "0.5 ether"})
-    assert accounts[1].balance() == minter_balance - "1.5 ether"
-    assert accounts[8].balance() == wallet_balance + "1.5 ether"
-
 def test_minting_closed(contracts):
     lolas_girls, rabbits, _ = contracts
+    lolas_girls.escapeRabbits([1,2,3,4,5,6,7,8,9,10], {"from": accounts[0]})
     for i in range(3):
         account = accounts[i]
         for j in range(rabbits.balanceOf(account)):
@@ -133,6 +121,7 @@ def test_minting_closed(contracts):
 def test_invalid_mint_max_reached(contracts):
     lolas_girls, rabbits, _ = contracts
     lolas_girls.setMint(True, {"from": accounts[0]})
+    lolas_girls.escapeRabbits([1,2,3,4,5,6,7,8,9,10], {"from": accounts[0]})
     initial_wallet_balance = accounts[8].balance()
     for i in range(3):
         account = accounts[i]
@@ -153,15 +142,59 @@ def test_incorrect_mint_price(contracts):
     lolas_girls, rabbits, _ = contracts
     lolas_girls.setMint(True, {"from": accounts[0]})
     rabbit_id = rabbits.tokenOfOwnerByIndex(accounts[2], 0)
+    lolas_girls.escapeRabbits([1,2,3,4,5,6,7,8,9,10], {"from": accounts[0]})
     with brownie.reverts():
         lolas_girls.mint(rabbit_id, {"from": accounts[2], "value": "0.9 ether"})
     with brownie.reverts():
         lolas_girls.mint(rabbit_id, {"from": accounts[2], "value": "1.1 ether"})
     lolas_girls.mint(rabbit_id, {"from": accounts[2], "value": "1 ether"})
 
+def test_change_mint_price(contracts):
+    lolas_girls, rabbits, _ = contracts
+    wallet_balance = accounts[8].balance()
+    minter_balance = accounts[1].balance()
+    lolas_girls.setMint(True, {"from": accounts[0]})
+    lolas_girls.escapeRabbits([1,2,3,4,5,6,7,8,9,10], {"from": accounts[0]})
+    rabbit_id = rabbits.tokenOfOwnerByIndex(accounts[1], 0)
+    lolas_girls.mint(rabbit_id, {"from": accounts[1], "value": "1 ether"})
+    lolas_girls.setPrice("0.5 ether", {"from": accounts[8]})
+    rabbit_id = rabbits.tokenOfOwnerByIndex(accounts[1], 1)
+    with brownie.reverts():
+        lolas_girls.mint(rabbit_id, {"from": accounts[1], "value": "1 ether"})
+    lolas_girls.mint(rabbit_id, {"from": accounts[1], "value": "0.5 ether"})
+    assert accounts[1].balance() == minter_balance - "1.5 ether"
+    assert accounts[8].balance() == wallet_balance + "1.5 ether"
+
+def test_non_escaped_rabbits(contracts):
+    lolas_girls, rabbits, _ = contracts
+    lolas_girls.setMint(True, {"from": accounts[0]})
+    initial_wallet_balance = accounts[8].balance()
+    for i in range(3):
+        account = accounts[i]
+        for j in range(rabbits.balanceOf(account)):
+            account_balance = account.balance()
+            rabbit_id = rabbits.tokenOfOwnerByIndex(account, j)
+            token_id = lolas_girls.tokenIdTracker()
+            with brownie.reverts():
+                lolas_girls.mint(rabbit_id, {"from": account, "value": "1 ether"})
+    lolas_girls.escapeRabbits([1,2,3,4,5,6,7,8,9,10], {"from": accounts[0]})
+    for i in range(3):
+        account = accounts[i]
+        for j in range(rabbits.balanceOf(account)):
+            account_balance = account.balance()
+            rabbit_id = rabbits.tokenOfOwnerByIndex(account, j)
+            token_id = lolas_girls.tokenIdTracker()
+            lolas_girls.mint(rabbit_id, {"from": account, "value": "1 ether"})
+            assert lolas_girls.ownerOf(token_id) == account
+            assert account.balance() == account_balance - "1 ether"
+            assert lolas_girls.tokenURI(token_id) == f"base_uri/{token_id}.json"
+    assert accounts[8].balance() == initial_wallet_balance + "10 ether"
+    assert lolas_girls.totalSupply() == 10
+
 def test_rabbit_double_mint(contracts):
     lolas_girls, rabbits, bus = contracts
     lolas_girls.setMint(True, {"from": accounts[0]})
+    lolas_girls.escapeRabbits([1,2,3,4,5,6,7,8,9,10], {"from": accounts[0]})
     rabbit_id_one = rabbits.tokenOfOwnerByIndex(accounts[1], 0)
     rabbit_id_two = rabbits.tokenOfOwnerByIndex(accounts[1], 1)
     lolas_girls.mint(rabbit_id_one, {"from": accounts[1], "value": "1 ether"})
@@ -182,6 +215,7 @@ def test_rabbit_double_mint(contracts):
 def test_caller_is_not_owner_rabbit(contracts):
     lolas_girls, rabbits, bus = contracts
     lolas_girls.setMint(True, {"from": accounts[0]})
+    lolas_girls.escapeRabbits([1,2,3,4,5,6,7,8,9,10], {"from": accounts[0]})
     rabbit_id_acc_0 = rabbits.tokenOfOwnerByIndex(accounts[0], 0)
     rabbit_id_acc_1 = rabbits.tokenOfOwnerByIndex(accounts[1], 0)
     rabbits.setApprovalForAll(bus.address, True, {'from': accounts[0]})
@@ -194,6 +228,7 @@ def test_caller_is_not_owner_rabbit(contracts):
 def test_tokenURI(contracts):
     lolas_girls, rabbits, _ = contracts
     lolas_girls.setMint(True, {"from": accounts[0]})
+    lolas_girls.escapeRabbits([1,2,3,4,5,6,7,8,9,10], {"from": accounts[0]})
     for i in range(3):
         rabbit_id = rabbits.tokenOfOwnerByIndex(accounts[i], 0)
         lolas_girls.mint(rabbit_id, {"from": accounts[i], "value": "1 ether"})
@@ -216,6 +251,7 @@ def test_tokenURI(contracts):
 def test_mint_with_rabbit_in_bus(contracts):
     lolas_girls, rabbits, bus = contracts
     lolas_girls.setMint(True, {"from": accounts[0]})
+    lolas_girls.escapeRabbits([1,2,3,4,5,6,7,8,9,10], {"from": accounts[0]})
     rabbit_id_acc_0 = rabbits.tokenOfOwnerByIndex(accounts[0], 0)
     rabbit_id_acc_2 = rabbits.tokenOfOwnerByIndex(accounts[2], 0)
     rabbits.setApprovalForAll(bus.address, True, {'from': accounts[0]})
