@@ -6,11 +6,11 @@
     ( . .)  ( . .)  ( . .)
    C(")(")  C(")(") C(")(")
 
-  Tombheads x FTM DEAD x 0xKupe x 0xKalakaua - LolasGirls - NFT Collection -
+  Tombheads x FTM DEAD x 0xKalakaua - LolasGirls - NFT Collection -
 
 */
 
-pragma solidity 0.8.0;
+pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -38,6 +38,8 @@ contract LolasGirls is AccessControlEnumerable, ERC721Enumerable, ERC721URIStora
     mapping(uint => bool) private hasLolasGirl;
     string private _baseTokenURI;
     string private _baseExtension;
+    string private _notRevealedURI;
+    bool private _revealed = false;
     bool private _openMint;
     IERC721 private _degenerabbits;
     BusInterface private _bus;
@@ -48,6 +50,7 @@ contract LolasGirls is AccessControlEnumerable, ERC721Enumerable, ERC721URIStora
         string memory symbol, 
         string memory baseURI,
         string memory baseExtension,
+        string memory notRevealedURI,
         uint mintPrice,
         uint max,
         address rabbitsAddress,
@@ -62,6 +65,7 @@ contract LolasGirls is AccessControlEnumerable, ERC721Enumerable, ERC721URIStora
         price = mintPrice;
         _baseTokenURI = baseURI;
         _baseExtension = baseExtension;
+        _notRevealedURI = notRevealedURI;
         _openMint = false;
         _degenerabbits = IERC721(rabbitsAddress);
         _bus = BusInterface(busAddress);
@@ -74,6 +78,10 @@ contract LolasGirls is AccessControlEnumerable, ERC721Enumerable, ERC721URIStora
     modifier onlyAdmin() {
         require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "LolasGirls: caller is not admin");
         _;
+    }
+
+    function revealGirls() external onlyAdmin {
+        _revealed = true;
     }
 
     function setBaseURI(string memory baseURI) external onlyAdmin {
@@ -141,6 +149,10 @@ contract LolasGirls is AccessControlEnumerable, ERC721Enumerable, ERC721URIStora
         override(ERC721, ERC721URIStorage)
         returns (string memory)
     {
+        if (!_revealed) {
+            require(_exists(tokenId), "LolasGirls: URI query for nonexistent token");
+            return _notRevealedURI;
+        }
         return ERC721URIStorage.tokenURI(tokenId);
     }
 

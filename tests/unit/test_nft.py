@@ -30,6 +30,7 @@ def contracts(bus):
     symbol = "LOLASGIRLS"
     base_uri = "base_uri/"
     base_extension = ".json"
+    not_revealed_uri = "not revealed"
     mint_price = 1000000000000000000
     max_supply = 10
     rabbits_address = rabbits.address
@@ -41,6 +42,7 @@ def contracts(bus):
                             symbol,
                             base_uri,
                             base_extension,
+                            not_revealed_uri,
                             mint_price,
                             max_supply,
                             rabbits_address,
@@ -63,6 +65,7 @@ def test_initial_state(contracts):
 
 def test_valid_mint(contracts):
     lolas_girls, rabbits, _ = contracts
+    lolas_girls.revealGirls()
     lolas_girls.setMint(True, {"from": accounts[0]})
     lolas_girls.escapeRabbits([1,2,3,4,5,6,7,8,9,10], {"from": accounts[0]})
     initial_wallet_balance = accounts[8].balance()
@@ -93,15 +96,14 @@ def test_only_admin(contracts):
             lolas_girls.setBaseURI("test/", {"from": accounts[i]})
             lolas_girls.setTokenURI(1, "new tokenURI", {"from": accounts[i]})
             lolas_girls.setPrice("1 ether", {"from": accounts[i]})
+            lolas_girls.revealGirls({"from": accounts[i]})
         else:
-            with brownie.reverts():
+            with brownie.reverts("LolasGirls: caller is not admin"):
                 lolas_girls.setMint(True, {"from": accounts[i]})
-            with brownie.reverts():
                 lolas_girls.setBaseURI("test/", {"from": accounts[i]})
-            with brownie.reverts():
                 lolas_girls.setTokenURI(1, "new tokenURI", {"from": accounts[i]})
-            with brownie.reverts():
                 lolas_girls.setPrice("0.5 ether", {"from": accounts[i]})
+                lolas_girls.revealGirls({"from": accounts[i]})
 
 def test_minting_closed(contracts):
     lolas_girls, rabbits, _ = contracts
@@ -120,6 +122,7 @@ def test_minting_closed(contracts):
 
 def test_invalid_mint_max_reached(contracts):
     lolas_girls, rabbits, _ = contracts
+    lolas_girls.revealGirls()
     lolas_girls.setMint(True, {"from": accounts[0]})
     lolas_girls.escapeRabbits([1,2,3,4,5,6,7,8,9,10], {"from": accounts[0]})
     initial_wallet_balance = accounts[8].balance()
@@ -167,6 +170,7 @@ def test_change_mint_price(contracts):
 
 def test_non_escaped_rabbits(contracts):
     lolas_girls, rabbits, _ = contracts
+    lolas_girls.revealGirls()
     lolas_girls.setMint(True, {"from": accounts[0]})
     initial_wallet_balance = accounts[8].balance()
     for i in range(3):
@@ -229,9 +233,21 @@ def test_tokenURI(contracts):
     lolas_girls, rabbits, _ = contracts
     lolas_girls.setMint(True, {"from": accounts[0]})
     lolas_girls.escapeRabbits([1,2,3,4,5,6,7,8,9,10], {"from": accounts[0]})
+
+    # revert if token not minted yet
+    with brownie.reverts("LolasGirls: URI query for nonexistent token"):
+        lolas_girls.tokenURI(1)
+
     for i in range(3):
         rabbit_id = rabbits.tokenOfOwnerByIndex(accounts[i], 0)
         lolas_girls.mint(rabbit_id, {"from": accounts[i], "value": "1 ether"})
+
+    # return not revealed URI
+    assert lolas_girls.tokenURI(1) == "not revealed"
+    assert lolas_girls.tokenURI(2) == "not revealed"
+    assert lolas_girls.tokenURI(3) == "not revealed"
+
+    lolas_girls.revealGirls()
     assert lolas_girls.tokenURI(1) == "base_uri/1.json"
     assert lolas_girls.tokenURI(2) == "base_uri/2.json"
     assert lolas_girls.tokenURI(3) == "base_uri/3.json"
